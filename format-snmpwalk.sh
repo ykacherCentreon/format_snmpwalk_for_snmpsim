@@ -4,7 +4,8 @@ format_snmpwalk(){
         file="$1"
         file_name=$(basename -- "$file")
 
-        result_file="$file.formated"
+        tmp_result_file="$file.formated.tmp"
+        final_result_file="$file.formated"
 
         number_of_lines_in_file=$(wc -l < $file)
         current_line=1
@@ -12,8 +13,9 @@ format_snmpwalk(){
         line_starting_pattern=".1."
         new_line=""
 
-        echo -e "Result file created : $result_file"
-        touch $result_file
+        echo -e "Result files created : $final_result_file"
+        touch $final_result_file
+	touch $tmp_result_file
 
         while [ $current_line -le $number_of_lines_in_file ]
         do
@@ -33,7 +35,7 @@ format_snmpwalk(){
 
         if [[ $next_first_chars == $line_starting_pattern || $current_line == $number_of_lines_in_file ]]
         then
-                echo $new_line >> $result_file # Debut d'une nouvelle ligne ou fin du fichier, donc on ecrit la precedente
+                echo $new_line >> $tmp_result_file # Debut d'une nouvelle ligne ou fin du fichier, donc on ecrit la precedente
         fi
 
         echo -ne "Formating from $file ($progress%) \r"
@@ -42,9 +44,19 @@ format_snmpwalk(){
 done
 
 
-sed -i -e '$a\' $result_file
-sed -i '/^[0-9ABCDEF]/d' $result_file
-sed -i 's/ instances\| failures\| notifications//g' $result_file
+sed -i -e '$a\' $tmp_result_file
+sed -i '/^[0-9ABCDEF]/d' $tmp_result_file
+sed -i 's/ instances\| failures\| notifications//g' $tmp_result_file
+
+awk '{if ($0 ~ /INTEGER: .*[()]/) { if(split($0,a,"[()]")==3);   split($0, arr, ":"); print arr[1]": "a[2] } else { print $0 }}' $tmp_result_file > $final_result_file
+
+echo -e "\nRemoving temporary file $tmp_result_file"
+
+if [ -f "$tmp_result_file" ]; then
+    rm -f $tmp_result_file
+else 
+    echo -e "Temporary file does not exist."
+fi
 echo -e "\nDone !"
 }
 
